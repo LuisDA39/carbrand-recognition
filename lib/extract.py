@@ -2,6 +2,8 @@ import os
 import json
 import cv2
 import numpy as np
+from skimage.feature import hog
+from skimage.color import rgb2gray
 from pycocotools.coco import COCO
 
 def extract_brand_samples_from_coco(image_dir, annotation_file, size=(128, 128)):
@@ -32,3 +34,11 @@ def extract_brand_samples_from_coco(image_dir, annotation_file, size=(128, 128))
             y.append(ann['category_id'])
 
     return np.array(X), np.array(y)
+
+def extract_hog_features(image_path):
+    img = cv2.imread(image_path)
+    img = cv2.resize(img, (128, 128))
+    gray = rgb2gray(img)  # convertir a escala de grises
+
+    features = hog(gray, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(2, 2), block_norm='L2-Hys')
+    return features

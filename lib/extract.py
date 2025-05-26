@@ -2,36 +2,39 @@ import os
 import json
 import cv2
 import numpy as np
+from collections import defaultdict
 from skimage.feature import hog
 from skimage.color import rgb2gray
 from pycocotools.coco import COCO
 
-def extract_brand_samples_from_coco(image_dir, annotation_file, size=(128, 128)):
-    coco = COCO(annotation_file)
-    image_ids = coco.getImgIds()
-    X, y = [], []
+def extract_brand_samples_from_coco(images_dir, annotation_path):
+    with open(annotation_path, 'r') as f:
+        data = json.load(f)
 
-    for img_id in image_ids:
-        img_info = coco.loadImgs(img_id)[0]
-        img_path = os.path.join(image_dir, img_info['file_name'])
+    # Mapeo de ID a nombre de archivo
+    image_id_to_file = {img['id']: img['file_name'] for img in data['images']}
 
-        img = cv2.imread(img_path)
-        if img is None:
-            continue
+    # Agrupar anotaciones por imagen
+    image_annotations = defaultdict(list)
+    for ann in data['annotations']:
+        image_annotations[ann['image_id']].append(ann)
 
-        ann_ids = coco.getAnnIds(imgIds=img_id)
-        anns = coco.loadAnns(ann_ids)
+    X = []
+    y = []
 
-        for ann in anns:
-            x, y_, w, h = map(int, ann['bbox'])
-            crop = img[y_:y_+h, x:x+w]
-            if crop.size == 0:
-                continue
+    for img_id, anns in image_annotations.items():
+        file_name = image_id_to_file[img_id]
+        full_path = os.path.join(images_dir, file_name)
 
-            crop_resized = cv2.resize(crop, size)
-            gray = cv2.cvtColor(crop_resized, cv2.COLOR_BGR2GRAY)
-            X.append(gray.flatten())
-            y.append(ann['category_id'])
+        # Asumimos una sola marca por imagen
+        class_id = anns[0]['category_id']
+
+        try:
+            features = extract_hog_features(full_path)
+            X.append(features)
+            y.append(class_id)
+        except Exception as e:
+            print(f"Error en {full_path}: {e}")
 
     return np.array(X), np.array(y)
 

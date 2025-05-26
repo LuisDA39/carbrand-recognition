@@ -4,20 +4,20 @@ import cv2
 import numpy as np
 from pycocotools.coco import COCO
 
-def extract_license_plates_from_coco(image_dir, annotation_file):
+def extract_brand_samples_from_coco(image_dir, annotation_file, size=(128, 128)):
     coco = COCO(annotation_file)
     image_ids = coco.getImgIds()
-    X = []
-    y = []
+    X, y = [], []
 
     for img_id in image_ids:
         img_info = coco.loadImgs(img_id)[0]
         img_path = os.path.join(image_dir, img_info['file_name'])
+
         img = cv2.imread(img_path)
         if img is None:
             continue
 
-        ann_ids = coco.getAnnIds(imgIds=img_info['id'])
+        ann_ids = coco.getAnnIds(imgIds=img_id)
         anns = coco.loadAnns(ann_ids)
 
         for ann in anns:
@@ -26,10 +26,9 @@ def extract_license_plates_from_coco(image_dir, annotation_file):
             if crop.size == 0:
                 continue
 
-            # Resize para normalizar (por ejemplo, 64x64)
-            crop_resized = cv2.resize(crop, (64, 64))
+            crop_resized = cv2.resize(crop, size)
             gray = cv2.cvtColor(crop_resized, cv2.COLOR_BGR2GRAY)
             X.append(gray.flatten())
-            y.append(ann['category_id'])  # Cambiar si es multiclase o binario
+            y.append(ann['category_id'])
 
     return np.array(X), np.array(y)
